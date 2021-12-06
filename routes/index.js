@@ -10,7 +10,7 @@ const saltRounds = 10;
 router.post("/sign-up", async function (req, res) {
   const { firstName, lastName, email, password } = req.body;
 
-  // Hash du mot de passe en DB et ajout de l'utilisateur
+  // Hash du mot de passe en DB et ajout de l'utilisateur en DB
   bcrypt.hash(password, saltRounds, async function (err, hash) {
     const newUser = new userModel({
       firstName: firstName,
@@ -23,7 +23,11 @@ router.post("/sign-up", async function (req, res) {
 
     await newUser.save();
 
-    res.json({ result: true, message: "User added to DB" });
+    res.json({
+      result: true,
+      message: "User added to DB",
+      userToken: newUser.token,
+    });
   });
 });
 
@@ -36,7 +40,12 @@ router.post("/sign-in", async function (req, res) {
 
   // Comparaison du mot de passe entré par l'utilisateur avec celui enregistré en DB
   bcrypt.compare(password, user.password, function (err, result) {
-    if (result) res.json({ result: true, message: "User connected" });
+    if (result)
+      res.json({
+        result: true,
+        message: "User connected",
+        userToken: user.token,
+      });
     else res.json({ result: false, message: "Wrong credentials" });
   });
 });
