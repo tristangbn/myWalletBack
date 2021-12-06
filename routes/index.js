@@ -6,11 +6,6 @@ const bcrypt = require("bcrypt");
 const uid2 = require("uid2");
 const saltRounds = 10;
 
-/* GET home page. */
-router.get("/", function (req, res, next) {
-  res.render("index", { title: "Express" });
-});
-
 // Inscription d'un utilisateur
 router.post("/sign-up", async function (req, res) {
   const { firstName, lastName, email, password } = req.body;
