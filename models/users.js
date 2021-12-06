@@ -13,6 +13,7 @@ const userSchema = mongoose.Schema({
       image: String,
       name: String,
       totalQuantity: Number,
+      symbol: String,
       transactions_id: [
         { type: mongoose.Schema.Types.ObjectId, ref: "transactions" },
       ],
