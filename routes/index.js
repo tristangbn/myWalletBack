@@ -33,7 +33,6 @@ router.post("/sign-up", async function (req, res) {
       result: true,
       message: "User added to DB",
       userToken: newUser.token,
-      firstName: newUser.firstName,
     });
   });
 });
@@ -52,7 +51,6 @@ router.post("/sign-in", async function (req, res) {
         result: true,
         message: "User connected",
         userToken: user.token,
-        firstName: user.firstName,
       });
     else res.json({ result: false, message: "Wrong credentials" });
   });
@@ -65,12 +63,12 @@ router.get("/list-crypto/:token", async function (req, res) {
   if (user) {
     const ownedCryptos = user.ownedCryptos;
     if (ownedCryptos) {
-      res.json({ result: true, ownedCryptos });
+      res.json({ result: true, message:"ownedCryptos array correctly loaded", ownedCryptos });
     } else {
-      res.json({ result: false });
+      res.json({ result: false, message: "No ownedCryptos array found" });
     }
   } else {
-    res.json({ result: false });
+    res.json({ result: false, message: "No user found" });
   }
 });
 
@@ -98,16 +96,16 @@ router.post("/add-crypto", async function (req, res) {
             { ownedCryptos }
           );
           if (update) {
-            res.json({ result: true });
+            res.json({ result: true, message: "Correctly added crypto to db" });
           } else {
-            res.json({ result: false });
+            res.json({ result: false, message: "Error while adding crypto to db" });
           }
         });
     } else {
-      res.json({ result: false });
+      res.json({ result: false, message: "Element already in db" });
     }
   } else {
-    res.json({ result: false });
+    res.json({ result: false, message: "No user found or missing body entry" });
   }
 });
 
@@ -127,12 +125,12 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
     );
 
     if (update) {
-      res.json({ result: true });
+      res.json({ result: true, message: "Correctly deleted crypto from db" });
     } else {
-      res.json({ result: false });
+      res.json({ result: false, message: "Error while deleting crypto from db" });
     }
   } else {
-    res.json({ result: false });
+    res.json({ result: false, message: "No user found or missing body entry" });
   }
 });
 
