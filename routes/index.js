@@ -33,6 +33,7 @@ router.post("/sign-up", async function (req, res) {
       result: true,
       message: "User added to DB",
       userToken: newUser.token,
+      firstName: newUser.firstName,
     });
   });
 });
@@ -51,6 +52,7 @@ router.post("/sign-in", async function (req, res) {
         result: true,
         message: "User connected",
         userToken: user.token,
+        firstName: user.firstName,
       });
     else res.json({ result: false, message: "Wrong credentials" });
   });
