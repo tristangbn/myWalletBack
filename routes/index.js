@@ -43,7 +43,10 @@ router.post(
     .withMessage("Do not use a common word as the password")
     .isLength({ min: 5 })
     .matches(/\d/),
-  check("email").isEmail().withMessage("Please enter a valid email address"),
+  check("email")
+    .trim()
+    .isEmail()
+    .withMessage("Please enter a valid email address"),
   async function (req, res) {
     const errors = validationResult(req);
     console.log(errors);
@@ -57,7 +60,7 @@ router.post(
         const newUser = new userModel({
           firstName: firstName,
           lastName: lastName,
-          email: email,
+          email: email.toLowerCase(),
           password: hash,
           inscriptionDate: new Date(),
           token: uid2(32),
@@ -161,18 +164,25 @@ router.get("/list-crypto/:token", async function (req, res) {
           params: { vs_currencies: "eur", ids },
         })
         .then((response) => {
-
           let ownedCryptosCopy = [];
 
           for (let i = 0; i < ownedCryptos.length; i++) {
-            const crypto = {id: ownedCryptos[i].id, image: ownedCryptos[i].image, name: ownedCryptos[i].name, symbol: ownedCryptos[i].symbol, transactions_id: ownedCryptos[i].transactions_id, current_price: response.data[ownedCryptos[i].id]['eur'], _id: ownedCryptos[i]._id};
+            const crypto = {
+              id: ownedCryptos[i].id,
+              image: ownedCryptos[i].image,
+              name: ownedCryptos[i].name,
+              symbol: ownedCryptos[i].symbol,
+              transactions_id: ownedCryptos[i].transactions_id,
+              current_price: response.data[ownedCryptos[i].id]["eur"],
+              _id: ownedCryptos[i]._id,
+            };
             ownedCryptosCopy.push(crypto);
           }
 
           res.json({
             result: true,
             message: "ownedCryptos array correctly loaded",
-            ownedCryptos:ownedCryptosCopy,
+            ownedCryptos: ownedCryptosCopy,
           });
         });
     } else {
