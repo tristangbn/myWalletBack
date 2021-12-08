@@ -149,9 +149,32 @@ router.get("/list-crypto/:token", async function (req, res) {
   const user = await userModel.findOne({ token: req.params.token });
 
   if (user) {
-    const ownedCryptos = user.ownedCryptos;
+    let ownedCryptos = [...user.ownedCryptos];
     if (ownedCryptos) {
-      res.json({ result: true, message:"ownedCryptos array correctly loaded", ownedCryptos });
+      let ids = "";
+      for (let i = 0; i < ownedCryptos.length; i++) {
+        ids += ownedCryptos[i].id + ",";
+      }
+
+      coinGeckoAPI
+        .get("/simple/price", {
+          params: { vs_currencies: "eur", ids },
+        })
+        .then((response) => {
+
+          let ownedCryptosCopy = [];
+
+          for (let i = 0; i < ownedCryptos.length; i++) {
+            const crypto = {id: ownedCryptos[i].id, image: ownedCryptos[i].image, name: ownedCryptos[i].name, symbol: ownedCryptos[i].symbol, transactions_id: ownedCryptos[i].transactions_id, current_price: response.data[ownedCryptos[i].id]['eur'], _id: ownedCryptos[i]._id};
+            ownedCryptosCopy.push(crypto);
+          }
+
+          res.json({
+            result: true,
+            message: "ownedCryptos array correctly loaded",
+            ownedCryptos:ownedCryptosCopy,
+          });
+        });
     } else {
       res.json({ result: false, message: "No ownedCryptos array found" });
     }
@@ -186,7 +209,10 @@ router.post("/add-crypto", async function (req, res) {
           if (update) {
             res.json({ result: true, message: "Correctly added crypto to db" });
           } else {
-            res.json({ result: false, message: "Error while adding crypto to db" });
+            res.json({
+              result: false,
+              message: "Error while adding crypto to db",
+            });
           }
         });
     } else {
@@ -215,7 +241,10 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
     if (update) {
       res.json({ result: true, message: "Correctly deleted crypto from db" });
     } else {
-      res.json({ result: false, message: "Error while deleting crypto from db" });
+      res.json({
+        result: false,
+        message: "Error while deleting crypto from db",
+      });
     }
   } else {
     res.json({ result: false, message: "No user found or missing body entry" });
