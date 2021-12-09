@@ -328,4 +328,51 @@ router.post("/add-transaction", async function (req, res) {
   }
 });
 
+router.delete(
+  "/delete-transaction/:token/:crypto/:id",
+  async function (req, res) {
+    const id = req.params.id;
+    const token = req.params.token;
+    const crypto_id = req.params.crypto;
+
+    // Trouver l'utilisateur grâce à son token
+    const user = await userModel.findOne({ token });
+
+    // Si un utilisateur est trouvé
+    if (user) {
+      // Suppression de la transaction dans la collection transactions
+      await transactionModel.deleteOne({ _id: id });
+
+      // Création d'une copie de l'array des transactions de cet utilisateur pour la cryptomonnaie reçue
+      let userTransactions = user.ownedCryptos.find(
+        (crypto) => crypto.id === crypto_id
+      ).transactions_id;
+
+      // // Suppression de l'ID de la nouvelle transaction dans la copie de l'array des transactions
+      userTransactions = userTransactions.filter((element) => element != id);
+
+      // Mise à jour de l'array des transactions de l'utilisateur pour la crypto
+      const updatedUserTransactions = await userModel.updateOne(
+        // Filtre sur le token pour viser l'utilisateur
+        {
+          token: token,
+        },
+        // On met à jour l'array transactions_id pour la crypto associée à la transaction
+        {
+          $set: { "ownedCryptos.$[crypto].transactions_id": userTransactions },
+        },
+        // On filtre l'array pour se positier dans dans la bonne crypto associée à la transaction
+        { arrayFilters: [{ "crypto.id": crypto_id }] }
+      );
+
+      res.json({
+        result: true,
+        message: "Transaction deleted",
+      });
+    } else {
+      res.json({ result: false, message: "Error adding transaction" });
+    }
+  }
+);
+
 module.exports = router;
