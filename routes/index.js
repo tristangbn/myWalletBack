@@ -370,7 +370,7 @@ router.delete(
         message: "Transaction deleted",
       });
     } else {
-      res.json({ result: false, message: "Error adding transaction" });
+      res.json({ result: false, message: "Error deleting transaction" });
     }
   }
 );
