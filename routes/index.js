@@ -7,10 +7,6 @@ const uid2 = require("uid2");
 const saltRounds = 10;
 const axios = require("axios");
 const { body, validationResult, check } = require("express-validator");
-const { token } = require("morgan");
-const req = require("express/lib/request");
-const { response } = require("../app");
-const res = require("express/lib/response");
 
 const coinGeckoAPI = axios.create({
   baseURL: "https://api.coingecko.com/api/v3",
@@ -275,6 +271,7 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
   }
 });
 
+// Ajout d'une transaction
 router.post("/add-transaction", async function (req, res) {
   const {
     token,
@@ -368,6 +365,7 @@ router.post("/add-transaction", async function (req, res) {
   }
 });
 
+// Supprimer une transaction
 router.delete(
   "/delete-transaction/:token/:crypto/:id",
   async function (req, res) {
@@ -441,35 +439,33 @@ router.delete(
     }
   }
 );
-// Afficher la liste des transactions de l'utilisateur
-router.get("/listTransaction/:token/:id", async function (req, res) {
+
+// Afficher la liste des transactions de l'utilisateur pour une crypto donnée
+router.get("/list-transactions/:token/:id", async function (req, res) {
   const { token, id } = req.params;
+
   // Trouver l'utilisateur grâce à son token
-  const user = await userModel.findOne({ token: token });
-  // .populate({
-  //   path: "ownedCryptos", //1st level subdoc (get comments)
-  //   select: "transactions_id",
-  // })
-  // .exec((err, res) => {
-  //   console.log(err);
-  // });
-  console.log(token, id);
+  const user = await userModel
+    .findOne({ token: token })
+    .populate("ownedCryptos.transactions_id");
 
-  console.log(user);
-
+  // Si l'utilisateur existe
   if (user) {
-    let ownedCryptos = [...user.ownedCryptos];
-    const userTransactions = user.ownedCryptos.find(
-      (crypto) => crypto.id === id
-    ).transactions_id;
+    // On cherche si des transactions existent pour la crypto envoyée
+    const transactions = user.ownedCryptos.find((crypto) => crypto.id === id);
 
-    // if (userTransactions) {
-    //   const transaction = user.populate("transactions");
-    //   console.log(transaction);
-    // } else {
-    //   res.json({ result: false, message: "No userTransactions found" });
-    // }
+    // Si des transactions sont trouvées
+    if (transactions) {
+      res.json({ result: true, transactions: transactions.transactions_id });
+    } else {
+      // Si aucune transaction pour cette crypto n'est trouvée
+      res.json({
+        result: false,
+        message: "No transactions found for this asset",
+      });
+    }
   } else {
+    // Si l'utilisateur n'est pas trouvé
     res.json({ result: false, message: "User not found" });
   }
 });
