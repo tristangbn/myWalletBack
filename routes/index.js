@@ -261,4 +261,71 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
   }
 });
 
+router.post("/add-transaction", async function (req, res) {
+  const {
+    token,
+    type,
+    id,
+    platform,
+    pair,
+    date,
+    price,
+    quantity,
+    fees,
+    from,
+    to,
+  } = req.body;
+
+  // Trouver l'utilisateur grâce à son token
+  const user = await userModel.findOne({ token: token });
+
+  // Si un utilisateur est trouvé
+  if (user) {
+    // Création d'une copie de l'array des transactions de cet utilisateur pour la cryptomonnaie reçue
+    const userTransactions = user.ownedCryptos.find(
+      (crypto) => crypto.id === id
+    ).transactions_id;
+
+    // Création d'une nouvelle transaction
+    const newTransaction = new transactionModel({
+      type: type,
+      crypto: id,
+      platform: platform,
+      pair: pair,
+      date: date,
+      price: price,
+      quantity: quantity,
+      fees: fees,
+      from: from,
+      to: to,
+    });
+
+    // Sauvegarde de la transaction en BDD
+    const savedTransaction = await newTransaction.save();
+
+    // Ajout de l'ID de la nouvelle transaction dans la copie de l'array des transactions
+    userTransactions.push(savedTransaction._id);
+
+    // Mise à jour de l'array des transactions de l'utilisateur pour la crypto
+    const updatedUserTransactions = await userModel.updateOne(
+      // Filtre sur le token pour viser l'utilisateur
+      {
+        token: token,
+      },
+      // On met à jour l'array transactions_id pour la crypto associée à la transaction
+      { $set: { "ownedCryptos.$[crypto].transactions_id": userTransactions } },
+      // On filtre l'array pour se positier dans dans la bonne crypto associée à la transaction
+      { arrayFilters: [{ "crypto.id": id }] }
+    );
+
+    res.json({
+      result: true,
+      message: "Transaction added",
+      transactionID: savedTransaction._id,
+    });
+  } else {
+    res.json({ result: false, message: "Error adding transaction" });
+  }
+});
+
 module.exports = router;

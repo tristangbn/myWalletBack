@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const transactionSchema = mongoose.Schema({
   type: String,
-  name: String,
+  crypto: String,
   platform: String,
   pair: String,
   date: Date,
