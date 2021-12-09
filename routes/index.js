@@ -180,6 +180,7 @@ router.get("/list-crypto/:token", async function (req, res) {
               image: ownedCryptos[i].image,
               name: ownedCryptos[i].name,
               symbol: ownedCryptos[i].symbol,
+              totalQuantity: ownedCryptos[i].totalQuantity,
               transactions_id: ownedCryptos[i].transactions_id,
               current_price: response.data[ownedCryptos[i].id]["eur"],
               _id: ownedCryptos[i]._id,
