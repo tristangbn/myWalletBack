@@ -147,6 +147,14 @@ router.post(
   }
 );
 
+// Connexion via token LocalStorage
+router.post("/sign-in-token", async function (req, res) {
+  const user = await userModel.findOne({ token: req.body.token });
+
+  if (user) res.json({ result: true, message: "Token exists" });
+  else res.json({ result: false, message: "Token invalid" });
+});
+
 // Afficher la liste des crypto de l'utilisateur
 router.get("/list-crypto/:token", async function (req, res) {
   const user = await userModel.findOne({ token: req.params.token });
@@ -208,6 +216,7 @@ router.post("/add-crypto", async function (req, res) {
           const newCrypto = {
             id: response.data[0].id,
             image: response.data[0].image,
+            totalQuantity: 0,
             name: response.data[0].name,
             symbol: response.data[0].symbol,
           };
@@ -279,12 +288,20 @@ router.post("/add-transaction", async function (req, res) {
   // Trouver l'utilisateur grâce à son token
   const user = await userModel.findOne({ token: token });
 
+  console.log("TYPE QUANTITY", typeof quantity);
+
   // Si un utilisateur est trouvé
   if (user) {
     // Création d'une copie de l'array des transactions de cet utilisateur pour la cryptomonnaie reçue
     const userTransactions = user.ownedCryptos.find(
       (crypto) => crypto.id === id
     ).transactions_id;
+
+    let totalQuantity = user.ownedCryptos.find(
+      (crypto) => crypto.id === id
+    ).totalQuantity;
+
+    console.log("TOTAL QUANTITY", typeof totalQuantity);
 
     // Création d'une nouvelle transaction
     const newTransaction = new transactionModel({
@@ -306,6 +323,19 @@ router.post("/add-transaction", async function (req, res) {
     // Ajout de l'ID de la nouvelle transaction dans la copie de l'array des transactions
     userTransactions.push(savedTransaction._id);
 
+    // Mise à jour de totalQuantity de la crypto fonction du type de transaction
+    switch (type) {
+      case "buy":
+        totalQuantity += Number(quantity);
+        break;
+      case "sell":
+        totalQuantity -= Number(quantity);
+        break;
+      case "transfer":
+        totalQuantity -= Number(fees);
+        break;
+    }
+
     // Mise à jour de l'array des transactions de l'utilisateur pour la crypto
     const updatedUserTransactions = await userModel.updateOne(
       // Filtre sur le token pour viser l'utilisateur
@@ -313,7 +343,12 @@ router.post("/add-transaction", async function (req, res) {
         token: token,
       },
       // On met à jour l'array transactions_id pour la crypto associée à la transaction
-      { $set: { "ownedCryptos.$[crypto].transactions_id": userTransactions } },
+      {
+        $set: {
+          "ownedCryptos.$[crypto].transactions_id": userTransactions,
+          "ownedCryptos.$[crypto].totalQuantity": totalQuantity,
+        },
+      },
       // On filtre l'array pour se positier dans dans la bonne crypto associée à la transaction
       { arrayFilters: [{ "crypto.id": id }] }
     );
@@ -331,9 +366,9 @@ router.post("/add-transaction", async function (req, res) {
 router.delete(
   "/delete-transaction/:token/:crypto/:id",
   async function (req, res) {
-    const id = req.params.id;
     const token = req.params.token;
     const crypto_id = req.params.crypto;
+    const id = req.params.id;
 
     // Trouver l'utilisateur grâce à son token
     const user = await userModel.findOne({ token });
@@ -341,34 +376,61 @@ router.delete(
     // Si un utilisateur est trouvé
     if (user) {
       // Suppression de la transaction dans la collection transactions
-      await transactionModel.deleteOne({ _id: id });
+      const deleteTransaction = await transactionModel
+        .findOne({ _id: id })
+        .catch((e) => console.log(e));
 
-      // Création d'une copie de l'array des transactions de cet utilisateur pour la cryptomonnaie reçue
-      let userTransactions = user.ownedCryptos.find(
-        (crypto) => crypto.id === crypto_id
-      ).transactions_id;
+      if (deleteTransaction) {
+        await transactionModel.deleteOne({ _id: id });
 
-      // // Suppression de l'ID de la nouvelle transaction dans la copie de l'array des transactions
-      userTransactions = userTransactions.filter((element) => element != id);
+        // Création d'une copie de l'array des transactions de cet utilisateur pour la cryptomonnaie reçue
+        let userTransactions = user.ownedCryptos.find(
+          (crypto) => crypto.id === crypto_id
+        ).transactions_id;
 
-      // Mise à jour de l'array des transactions de l'utilisateur pour la crypto
-      const updatedUserTransactions = await userModel.updateOne(
-        // Filtre sur le token pour viser l'utilisateur
-        {
-          token: token,
-        },
-        // On met à jour l'array transactions_id pour la crypto associée à la transaction
-        {
-          $set: { "ownedCryptos.$[crypto].transactions_id": userTransactions },
-        },
-        // On filtre l'array pour se positier dans dans la bonne crypto associée à la transaction
-        { arrayFilters: [{ "crypto.id": crypto_id }] }
-      );
+        let totalQuantity = user.ownedCryptos.find(
+          (crypto) => crypto.id === crypto_id
+        ).totalQuantity;
 
-      res.json({
-        result: true,
-        message: "Transaction deleted",
-      });
+        switch (deleteTransaction.type) {
+          case "buy":
+            totalQuantity -= Number(deleteTransaction.quantity);
+            break;
+          case "sell":
+            totalQuantity += Number(deleteTransaction.quantity);
+            break;
+          case "transfer":
+            totalQuantity += Number(deleteTransaction.fees);
+            break;
+        }
+
+        // // Suppression de l'ID de la nouvelle transaction dans la copie de l'array des transactions
+        userTransactions = userTransactions.filter((element) => element != id);
+
+        // Mise à jour de l'array des transactions de l'utilisateur pour la crypto
+        const updatedUserTransactions = await userModel.updateOne(
+          // Filtre sur le token pour viser l'utilisateur
+          {
+            token: token,
+          },
+          // On met à jour l'array transactions_id pour la crypto associée à la transaction
+          {
+            $set: {
+              "ownedCryptos.$[crypto].transactions_id": userTransactions,
+              "ownedCryptos.$[crypto].totalQuantity": totalQuantity,
+            },
+          },
+          // On filtre l'array pour se positier dans dans la bonne crypto associée à la transaction
+          { arrayFilters: [{ "crypto.id": crypto_id }] }
+        );
+
+        res.json({
+          result: true,
+          message: "Transaction deleted",
+        });
+      } else {
+        res.json({ result: false, message: "Transaction not found" });
+      }
     } else {
       res.json({ result: false, message: "Error deleting transaction" });
     }
