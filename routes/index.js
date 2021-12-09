@@ -7,6 +7,10 @@ const uid2 = require("uid2");
 const saltRounds = 10;
 const axios = require("axios");
 const { body, validationResult, check } = require("express-validator");
+const { token } = require("morgan");
+const req = require("express/lib/request");
+const { response } = require("../app");
+const res = require("express/lib/response");
 
 const coinGeckoAPI = axios.create({
   baseURL: "https://api.coingecko.com/api/v3",
@@ -325,6 +329,39 @@ router.post("/add-transaction", async function (req, res) {
     });
   } else {
     res.json({ result: false, message: "Error adding transaction" });
+  }
+});
+
+// Afficher la liste des transactions de l'utilisateur
+router.get("/listTransaction/:token/:id", async function (req, res) {
+  const { token, id } = req.params;
+  // Trouver l'utilisateur grâce à son token
+  const user = await userModel.findOne({ token: token });
+  // .populate({
+  //   path: "ownedCryptos", //1st level subdoc (get comments)
+  //   select: "transactions_id",
+  // })
+  // .exec((err, res) => {
+  //   console.log(err);
+  // });
+  console.log(token, id);
+
+  console.log(user);
+
+  if (user) {
+    let ownedCryptos = [...user.ownedCryptos];
+    const userTransactions = user.ownedCryptos.find(
+      (crypto) => crypto.id === id
+    ).transactions_id;
+
+    // if (userTransactions) {
+    //   const transaction = user.populate("transactions");
+    //   console.log(transaction);
+    // } else {
+    //   res.json({ result: false, message: "No userTransactions found" });
+    // }
+  } else {
+    res.json({ result: false, message: "User not found" });
   }
 });
 
