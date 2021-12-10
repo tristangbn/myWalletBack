@@ -323,7 +323,7 @@ router.post("/add-transaction", async function (req, res) {
     const savedTransaction = await newTransaction.save();
 
     // Ajout de l'ID de la nouvelle transaction dans la copie de l'array des transactions
-    userTransactions.push(savedTransaction._id);
+    userTransactions.unshift(savedTransaction._id);
 
     // Mise à jour de totalQuantity de la crypto fonction du type de transaction
     switch (type) {
