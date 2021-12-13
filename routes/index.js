@@ -176,22 +176,27 @@ router.get("/list-crypto/:token", async function (req, res) {
       );
 
       console.log(buyTransactions);
+
       const totalInvestmentPerCrypto = [];
+
       if (buyTransactions[0].length > 0) {
         for (let el of buyTransactions) {
           // console.log(crypto);
-          const crypto = {
-            crypto: el[0].crypto,
-            totalInvestment: el.reduce((acc, val) => {
-              return acc + val.price * val.quantity + val.fees;
-            }, 0),
-          };
-          totalInvestmentPerCrypto.push(crypto);
+
+          if (el.length > 0) {
+            const crypto = {
+              crypto: el[0].crypto,
+              totalInvestment: el.reduce((acc, val) => {
+                return acc + val.price * val.quantity + val.fees;
+              }, 0),
+            };
+            totalInvestmentPerCrypto.push(crypto);
+          }
         }
       }
 
       // console.log(buyTransactions);
-      // console.log(totalBuyTransactionsPerCrypto);
+      console.log(totalInvestmentPerCrypto);
 
       coinGeckoAPI
         .get("/simple/price", {
@@ -210,11 +215,13 @@ router.get("/list-crypto/:token", async function (req, res) {
               transactions_id: ownedCryptos[i].transactions_id,
               currentPrice: response.data[ownedCryptos[i].id]["eur"],
               _id: ownedCryptos[i]._id,
-              totalInvestment:
-                totalInvestmentPerCrypto.length > 0 &&
-                totalInvestmentPerCrypto.find(
-                  (el) => el.crypto === ownedCryptos[i].id
-                ).totalInvestment,
+              totalInvestment: totalInvestmentPerCrypto.find(
+                (el) => el.crypto === ownedCryptos[i].id
+              )
+                ? totalInvestmentPerCrypto.find(
+                    (el) => el.crypto === ownedCryptos[i].id
+                  ).totalInvestment
+                : 0,
             };
             ownedCryptosCopy.push(crypto);
           }
