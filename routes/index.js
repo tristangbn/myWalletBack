@@ -182,7 +182,7 @@ router.get("/list-crypto/:token", async function (req, res) {
               symbol: ownedCryptos[i].symbol,
               totalQuantity: ownedCryptos[i].totalQuantity,
               transactions_id: ownedCryptos[i].transactions_id,
-              current_price: response.data[ownedCryptos[i].id]["eur"],
+              currentPrice: response.data[ownedCryptos[i].id]["eur"],
               _id: ownedCryptos[i]._id,
             };
             ownedCryptosCopy.push(crypto);
@@ -471,7 +471,7 @@ router.get("/list-transactions/:token/:id", async function (req, res) {
   }
 });
 
-router.post("/update-transaction", async function (req, res) {
+router.put("/update-transaction", async function (req, res) {
   const {
     _id,
     type,
