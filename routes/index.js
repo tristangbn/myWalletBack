@@ -175,17 +175,19 @@ router.get("/list-crypto/:token", async function (req, res) {
         )
       );
 
+      console.log(buyTransactions);
       const totalInvestmentPerCrypto = [];
-
-      for (let el of buyTransactions) {
-        // console.log(crypto);
-        const crypto = {
-          crypto: el[0].crypto,
-          totalInvestment: el.reduce((acc, val) => {
-            return acc + val.price * val.quantity + val.fees;
-          }, 0),
-        };
-        totalInvestmentPerCrypto.push(crypto);
+      if (buyTransactions[0].length > 0) {
+        for (let el of buyTransactions) {
+          // console.log(crypto);
+          const crypto = {
+            crypto: el[0].crypto,
+            totalInvestment: el.reduce((acc, val) => {
+              return acc + val.price * val.quantity + val.fees;
+            }, 0),
+          };
+          totalInvestmentPerCrypto.push(crypto);
+        }
       }
 
       // console.log(buyTransactions);
@@ -208,9 +210,11 @@ router.get("/list-crypto/:token", async function (req, res) {
               transactions_id: ownedCryptos[i].transactions_id,
               currentPrice: response.data[ownedCryptos[i].id]["eur"],
               _id: ownedCryptos[i]._id,
-              totalInvestment: totalInvestmentPerCrypto.find(
-                (el) => el.crypto === ownedCryptos[i].id
-              ).totalInvestment,
+              totalInvestment:
+                totalInvestmentPerCrypto.length > 0 &&
+                totalInvestmentPerCrypto.find(
+                  (el) => el.crypto === ownedCryptos[i].id
+                ).totalInvestment,
             };
             ownedCryptosCopy.push(crypto);
           }
