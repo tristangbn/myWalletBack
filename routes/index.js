@@ -273,6 +273,7 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
 
 // Ajout d'une transaction
 router.post("/add-transaction", async function (req, res) {
+  console.log(req.body);
   const {
     token,
     type,
@@ -467,6 +468,65 @@ router.get("/list-transactions/:token/:id", async function (req, res) {
   } else {
     // Si l'utilisateur n'est pas trouvé
     res.json({ result: false, message: "User not found" });
+  }
+});
+
+router.post("/update-transaction", async function (req, res) {
+  const {
+    _id,
+    type,
+    id,
+    platform,
+    pair,
+    date,
+    price,
+    quantity,
+    fees,
+    from,
+    to,
+  } = req.body;
+
+  const transactionToUpdate = await transactionModel.findOne({ _id: _id });
+
+  if (transactionToUpdate) {
+    if (type == "transfer") {
+      await transactionModel.updateOne(
+        { _id: _id },
+        {
+          type: type,
+          crypto: id,
+          platform: "",
+          pair: "",
+          date: date,
+          price: null,
+          quantity: quantity,
+          fees: fees,
+          from: from,
+          to: to,
+        }
+      );
+    } else {
+      await transactionModel.updateOne(
+        { _id: _id },
+        {
+          type: type,
+          crypto: id,
+          platform: platform,
+          pair: pair,
+          date: date,
+          price: price,
+          quantity: quantity,
+          fees: fees,
+          from: "",
+          to: "",
+        }
+      );
+    }
+    //
+
+    res.json({ result: true });
+  } else {
+    res.json({ result: false, message: "Transaction not found" });
   }
 });
 
