@@ -157,7 +157,9 @@ router.post("/sign-in-token", async function (req, res) {
 
 // Afficher la liste des crypto de l'utilisateur
 router.get("/list-crypto/:token", async function (req, res) {
-  const user = await userModel.findOne({ token: req.params.token });
+  const user = await userModel
+    .findOne({ token: req.params.token })
+    .populate("ownedCryptos.transactions_id");
 
   if (user) {
     let ownedCryptos = [...user.ownedCryptos];
@@ -166,6 +168,28 @@ router.get("/list-crypto/:token", async function (req, res) {
       for (let i = 0; i < ownedCryptos.length; i++) {
         ids += ownedCryptos[i].id + ",";
       }
+
+      const buyTransactions = ownedCryptos.map((crypto) =>
+        crypto.transactions_id.filter(
+          (transaction) => transaction.type === "buy"
+        )
+      );
+
+      const totalInvestmentPerCrypto = [];
+
+      for (let el of buyTransactions) {
+        // console.log(crypto);
+        const crypto = {
+          crypto: el[0].crypto,
+          totalInvestment: el.reduce((acc, val) => {
+            return acc + val.price * val.quantity + val.fees;
+          }, 0),
+        };
+        totalInvestmentPerCrypto.push(crypto);
+      }
+
+      // console.log(buyTransactions);
+      // console.log(totalBuyTransactionsPerCrypto);
 
       coinGeckoAPI
         .get("/simple/price", {
@@ -184,9 +208,14 @@ router.get("/list-crypto/:token", async function (req, res) {
               transactions_id: ownedCryptos[i].transactions_id,
               current_price: response.data[ownedCryptos[i].id]["eur"],
               _id: ownedCryptos[i]._id,
+              totalInvestment: totalInvestmentPerCrypto.find(
+                (el) => el.crypto === ownedCryptos[i].id
+              ).totalInvestment,
             };
             ownedCryptosCopy.push(crypto);
           }
+
+          console.log(ownedCryptosCopy);
 
           res.json({
             result: true,
@@ -471,7 +500,7 @@ router.get("/list-transactions/:token/:id", async function (req, res) {
   }
 });
 
-router.post("/update-transaction", async function (req, res) {
+router.put("/update-transaction", async function (req, res) {
   const {
     _id,
     type,
