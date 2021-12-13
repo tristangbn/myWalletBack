@@ -163,7 +163,9 @@ router.post("/sign-in-token", async function (req, res) {
 
 // Afficher la liste des crypto de l'utilisateur
 router.get("/list-crypto/:token", async function (req, res) {
-  const user = await userModel.findOne({ token: req.params.token });
+  const user = await userModel
+    .findOne({ token: req.params.token })
+    .populate("ownedCryptos.transactions_id");
 
   if (user) {
     let ownedCryptos = [...user.ownedCryptos];
@@ -172,6 +174,35 @@ router.get("/list-crypto/:token", async function (req, res) {
       for (let i = 0; i < ownedCryptos.length; i++) {
         ids += ownedCryptos[i].id + ",";
       }
+
+      const buyTransactions = ownedCryptos.map((crypto) =>
+        crypto.transactions_id.filter(
+          (transaction) => transaction.type === "buy"
+        )
+      );
+
+      console.log(buyTransactions);
+
+      const totalInvestmentPerCrypto = [];
+
+      if (buyTransactions[0].length > 0) {
+        for (let el of buyTransactions) {
+          // console.log(crypto);
+
+          if (el.length > 0) {
+            const crypto = {
+              crypto: el[0].crypto,
+              totalInvestment: el.reduce((acc, val) => {
+                return acc + val.price * val.quantity + val.fees;
+              }, 0),
+            };
+            totalInvestmentPerCrypto.push(crypto);
+          }
+        }
+      }
+
+      // console.log(buyTransactions);
+      console.log(totalInvestmentPerCrypto);
 
       coinGeckoAPI
         .get("/simple/price", {
@@ -190,9 +221,18 @@ router.get("/list-crypto/:token", async function (req, res) {
               transactions_id: ownedCryptos[i].transactions_id,
               current_price: response.data[ownedCryptos[i].id]["eur"],
               _id: ownedCryptos[i]._id,
+              totalInvestment: totalInvestmentPerCrypto.find(
+                (el) => el.crypto === ownedCryptos[i].id
+              )
+                ? totalInvestmentPerCrypto.find(
+                    (el) => el.crypto === ownedCryptos[i].id
+                  ).totalInvestment
+                : 0,
             };
             ownedCryptosCopy.push(crypto);
           }
+
+          console.log(ownedCryptosCopy);
 
           res.json({
             result: true,
@@ -350,7 +390,7 @@ router.post("/add-transaction", async function (req, res) {
     const savedTransaction = await newTransaction.save();
 
     // Ajout de l'ID de la nouvelle transaction dans la copie de l'array des transactions
-    userTransactions.push(savedTransaction._id);
+    userTransactions.unshift(savedTransaction._id);
 
     // Mise à jour de totalQuantity de la crypto fonction du type de transaction
     switch (type) {
@@ -493,6 +533,130 @@ router.get("/list-transactions/:token/:id", async function (req, res) {
     }
   } else {
     // Si l'utilisateur n'est pas trouvé
+    res.json({ result: false, message: "User not found" });
+  }
+});
+
+router.put("/update-transaction", async function (req, res) {
+  const {
+    token,
+    _id,
+    type,
+    id,
+    platform,
+    pair,
+    date,
+    price,
+    quantity,
+    fees,
+    from,
+    to,
+  } = req.body;
+
+  const user = await userModel.findOne({ token: token });
+
+  if (user) {
+    const transactionToUpdate = await transactionModel.findOne({ _id: _id });
+    const userCryptoQuantity = user.ownedCryptos.find(
+      (crypto) => crypto.id === id
+    ).totalQuantity;
+    console.log(userCryptoQuantity);
+
+    // update de la totalQuantity de la crypto impliquer par la transaction
+    switch (type) {
+      case "transfer":
+        await userModel.updateOne(
+          {
+            token: token,
+          },
+          {
+            $set: {
+              "ownedCryptos.$[crypto].totalQuantity":
+                Number(userCryptoQuantity) -
+                Number(transactionToUpdate.fees) +
+                Number(fees),
+            },
+          },
+
+          { arrayFilters: [{ "crypto.id": id }] }
+        );
+        break;
+      case "buy":
+        await userModel.updateOne(
+          {
+            token: token,
+          },
+          {
+            $set: {
+              "ownedCryptos.$[crypto].totalQuantity":
+                Number(userCryptoQuantity) -
+                Number(transactionToUpdate.quantity) +
+                Number(quantity),
+            },
+          },
+
+          { arrayFilters: [{ "crypto.id": id }] }
+        );
+        break;
+      case "sell":
+        await userModel.updateOne(
+          {
+            token: token,
+          },
+          {
+            $set: {
+              "ownedCryptos.$[crypto].totalQuantity":
+                Number(userCryptoQuantity) +
+                Number(transactionToUpdate.quantity) -
+                Number(quantity),
+            },
+          },
+
+          { arrayFilters: [{ "crypto.id": id }] }
+        );
+        break;
+    }
+
+    if (transactionToUpdate) {
+      if (type == "transfer") {
+        await transactionModel.updateOne(
+          { _id: _id },
+          {
+            type: type,
+            crypto: id,
+            platform: "",
+            pair: "",
+            date: date,
+            price: null,
+            quantity: quantity,
+            fees: fees,
+            from: from,
+            to: to,
+          }
+        );
+      } else {
+        await transactionModel.updateOne(
+          { _id: _id },
+          {
+            type: type,
+            crypto: id,
+            platform: platform,
+            pair: pair,
+            date: date,
+            price: price,
+            quantity: quantity,
+            fees: fees,
+            from: "",
+            to: "",
+          }
+        );
+      }
+
+      res.json({ result: true });
+    } else {
+      res.json({ result: false, message: "Transaction not found" });
+    }
+  } else {
     res.json({ result: false, message: "User not found" });
   }
 });
