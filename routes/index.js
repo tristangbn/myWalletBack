@@ -313,7 +313,6 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
 
 // Ajout d'une transaction
 router.post("/add-transaction", async function (req, res) {
-  console.log(req.body);
   const {
     token,
     type,
@@ -513,6 +512,7 @@ router.get("/list-transactions/:token/:id", async function (req, res) {
 
 router.put("/update-transaction", async function (req, res) {
   const {
+    token,
     _id,
     type,
     id,
@@ -526,47 +526,111 @@ router.put("/update-transaction", async function (req, res) {
     to,
   } = req.body;
 
-  const transactionToUpdate = await transactionModel.findOne({ _id: _id });
+  const user = await userModel.findOne({ token: token });
 
-  if (transactionToUpdate) {
-    if (type == "transfer") {
-      await transactionModel.updateOne(
-        { _id: _id },
-        {
-          type: type,
-          crypto: id,
-          platform: "",
-          pair: "",
-          date: date,
-          price: null,
-          quantity: quantity,
-          fees: fees,
-          from: from,
-          to: to,
-        }
-      );
-    } else {
-      await transactionModel.updateOne(
-        { _id: _id },
-        {
-          type: type,
-          crypto: id,
-          platform: platform,
-          pair: pair,
-          date: date,
-          price: price,
-          quantity: quantity,
-          fees: fees,
-          from: "",
-          to: "",
-        }
-      );
+  if (user) {
+    const transactionToUpdate = await transactionModel.findOne({ _id: _id });
+    const userCryptoQuantity = user.ownedCryptos.find(
+      (crypto) => crypto.id === id
+    ).totalQuantity;
+    console.log(userCryptoQuantity);
+
+    // update de la totalQuantity de la crypto impliquer par la transaction
+    switch (type) {
+      case "transfer":
+        await userModel.updateOne(
+          {
+            token: token,
+          },
+          {
+            $set: {
+              "ownedCryptos.$[crypto].totalQuantity":
+                Number(userCryptoQuantity) -
+                Number(transactionToUpdate.fees) +
+                Number(fees),
+            },
+          },
+
+          { arrayFilters: [{ "crypto.id": id }] }
+        );
+        break;
+      case "buy":
+        await userModel.updateOne(
+          {
+            token: token,
+          },
+          {
+            $set: {
+              "ownedCryptos.$[crypto].totalQuantity":
+                Number(userCryptoQuantity) -
+                Number(transactionToUpdate.quantity) +
+                Number(quantity),
+            },
+          },
+
+          { arrayFilters: [{ "crypto.id": id }] }
+        );
+        break;
+      case "sell":
+        await userModel.updateOne(
+          {
+            token: token,
+          },
+          {
+            $set: {
+              "ownedCryptos.$[crypto].totalQuantity":
+                Number(userCryptoQuantity) +
+                Number(transactionToUpdate.quantity) -
+                Number(quantity),
+            },
+          },
+
+          { arrayFilters: [{ "crypto.id": id }] }
+        );
+        break;
     }
-    //
 
-    res.json({ result: true });
+    if (transactionToUpdate) {
+      if (type == "transfer") {
+        await transactionModel.updateOne(
+          { _id: _id },
+          {
+            type: type,
+            crypto: id,
+            platform: "",
+            pair: "",
+            date: date,
+            price: null,
+            quantity: quantity,
+            fees: fees,
+            from: from,
+            to: to,
+          }
+        );
+      } else {
+        await transactionModel.updateOne(
+          { _id: _id },
+          {
+            type: type,
+            crypto: id,
+            platform: platform,
+            pair: pair,
+            date: date,
+            price: price,
+            quantity: quantity,
+            fees: fees,
+            from: "",
+            to: "",
+          }
+        );
+      }
+
+      res.json({ result: true });
+    } else {
+      res.json({ result: false, message: "Transaction not found" });
+    }
   } else {
-    res.json({ result: false, message: "Transaction not found" });
+    res.json({ result: false, message: "User not found" });
   }
 });
 
