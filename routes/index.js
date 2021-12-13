@@ -273,7 +273,6 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
 
 // Ajout d'une transaction
 router.post("/add-transaction", async function (req, res) {
-  console.log(req.body);
   const {
     token,
     type,
@@ -471,7 +470,7 @@ router.get("/list-transactions/:token/:id", async function (req, res) {
   }
 });
 
-router.post("/update-transaction", async function (req, res) {
+router.put("/update-transaction", async function (req, res) {
   const {
     _id,
     type,
