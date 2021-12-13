@@ -7,9 +7,15 @@ const uid2 = require("uid2");
 const saltRounds = 10;
 const axios = require("axios");
 const { body, validationResult, check } = require("express-validator");
+const cookieParser = require("cookie-parser");
 
 const coinGeckoAPI = axios.create({
   baseURL: "https://api.coingecko.com/api/v3",
+  timeout: 1000,
+});
+
+const myWalletAPI = axios.create({
+  baseURL: "http://192.168.1.23:3000",
   timeout: 1000,
 });
 
@@ -248,24 +254,45 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
   const user = await userModel.findOne({ token: req.params.token });
 
   if (user && req.params.id) {
-    const ownedCryptos = user.ownedCryptos;
-    const deleteCrypto = ownedCryptos.filter(
-      (word) => word.id !== req.params.id
-    );
-
-    const update = await userModel.updateOne(
-      { token: req.params.token },
-      { ownedCryptos: deleteCrypto }
-    );
-
-    if (update) {
-      res.json({ result: true, message: "Correctly deleted crypto from db" });
-    } else {
-      res.json({
-        result: false,
-        message: "Error while deleting crypto from db",
+    myWalletAPI
+      .get(`/list-transactions/${req.params.token}/${req.params.id}`)
+      .then(async (response) => {
+        // console.log(response.data.result, response.data.transactions);
+        const transactions = response.data.transactions;
+        if (response.data.transactions) {
+          for (let i = 0; i < transactions.length; i++) {
+            console.log(
+              `/delete-transaction/${req.params.token}/${req.params.id}/${transactions[i]._id}`
+            );
+            myWalletAPI
+              .delete(
+                `/delete-transaction/${req.params.token}/${req.params.id}/${transactions[i]._id}`
+              )
+              .then((response) => {
+                console.log(response.data);
+              });
+          }
+        }
+        const ownedCryptos = user.ownedCryptos;
+        const deleteCrypto = ownedCryptos.filter(
+          (word) => word.id !== req.params.id
+        );
+        const update = await userModel.updateOne(
+          { token: req.params.token },
+          { ownedCryptos: deleteCrypto }
+        );
+        if (update) {
+          res.json({
+            result: true,
+            message: "Correctly deleted crypto from db",
+          });
+        } else {
+          res.json({
+            result: false,
+            message: "Error while deleting crypto from db",
+          });
+        }
       });
-    }
   } else {
     res.json({ result: false, message: "No user found or missing body entry" });
   }
@@ -290,7 +317,7 @@ router.post("/add-transaction", async function (req, res) {
   // Trouver l'utilisateur grâce à son token
   const user = await userModel.findOne({ token: token });
 
-  console.log("TYPE QUANTITY", typeof quantity);
+  // console.log("TYPE QUANTITY", typeof quantity);
 
   // Si un utilisateur est trouvé
   if (user) {
@@ -303,7 +330,7 @@ router.post("/add-transaction", async function (req, res) {
       (crypto) => crypto.id === id
     ).totalQuantity;
 
-    console.log("TOTAL QUANTITY", typeof totalQuantity);
+    // console.log("TOTAL QUANTITY", typeof totalQuantity);
 
     // Création d'une nouvelle transaction
     const newTransaction = new transactionModel({
