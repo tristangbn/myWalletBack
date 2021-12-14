@@ -181,11 +181,11 @@ router.get("/list-crypto/:token", async function (req, res) {
         )
       );
 
-      console.log(buyTransactions);
+      // console.log(buyTransactions);
 
       const totalInvestmentPerCrypto = [];
 
-      if (buyTransactions[0].length > 0) {
+      if (buyTransactions.length > 0 && buyTransactions[0].length > 0) {
         for (let el of buyTransactions) {
           // console.log(crypto);
 
@@ -202,7 +202,7 @@ router.get("/list-crypto/:token", async function (req, res) {
       }
 
       // console.log(buyTransactions);
-      console.log(totalInvestmentPerCrypto);
+      // console.log(totalInvestmentPerCrypto);
 
       coinGeckoAPI
         .get("/simple/price", {
@@ -219,7 +219,7 @@ router.get("/list-crypto/:token", async function (req, res) {
               symbol: ownedCryptos[i].symbol,
               totalQuantity: ownedCryptos[i].totalQuantity,
               transactions_id: ownedCryptos[i].transactions_id,
-              current_price: response.data[ownedCryptos[i].id]["eur"],
+              currentPrice: response.data[ownedCryptos[i].id]["eur"],
               _id: ownedCryptos[i]._id,
               totalInvestment: totalInvestmentPerCrypto.find(
                 (el) => el.crypto === ownedCryptos[i].id
@@ -232,7 +232,7 @@ router.get("/list-crypto/:token", async function (req, res) {
             ownedCryptosCopy.push(crypto);
           }
 
-          console.log(ownedCryptosCopy);
+          // console.log(ownedCryptosCopy);
 
           res.json({
             result: true,
@@ -313,26 +313,28 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
               });
           }
         }
-        const ownedCryptos = user.ownedCryptos;
-        const deleteCrypto = ownedCryptos.filter(
-          (word) => word.id !== req.params.id
-        );
-        const update = await userModel.updateOne(
-          { token: req.params.token },
-          { ownedCryptos: deleteCrypto }
-        );
-        if (update) {
-          res.json({
-            result: true,
-            message: "Correctly deleted crypto from db",
-          });
-        } else {
-          res.json({
-            result: false,
-            message: "Error while deleting crypto from db",
-          });
-        }
       });
+    // wait(2000).then(async () => {
+    //   const ownedCryptos = user.ownedCryptos;
+    //   const deleteCrypto = ownedCryptos.filter(
+    //     (word) => word.id !== req.params.id
+    //   );
+    //   const update = await userModel.updateOne(
+    //     { token: req.params.token },
+    //     { ownedCryptos: deleteCrypto }
+    //   );
+    //   if (update) {
+    //     res.json({
+    //       result: true,
+    //       message: "Correctly deleted crypto from db",
+    //     });
+    //   } else {
+    //     res.json({
+    //       result: false,
+    //       message: "Error while deleting crypto from db",
+    //     });
+    //   }
+    // });
   } else {
     res.json({ result: false, message: "No user found or missing body entry" });
   }
@@ -494,6 +496,8 @@ router.delete(
           { arrayFilters: [{ "crypto.id": crypto_id }] }
         );
 
+        console.log(updatedUserTransactions)
+
         res.json({
           result: true,
           message: "Transaction deleted",
@@ -560,7 +564,7 @@ router.put("/update-transaction", async function (req, res) {
     const userCryptoQuantity = user.ownedCryptos.find(
       (crypto) => crypto.id === id
     ).totalQuantity;
-    console.log(userCryptoQuantity);
+    // console.log(userCryptoQuantity);
 
     // update de la totalQuantity de la crypto impliquer par la transaction
     switch (type) {
