@@ -234,13 +234,38 @@ router.get("/list-crypto/:token", async function (req, res) {
             0
           );
 
-          console.log(totalPortfolioInvestment);
+          let portfolioVariationInPercent = 0;
+          for (el of totalInvestmentPerCrypto) {
+            const index = ownedCryptosCopy.findIndex(
+              (crypto) => crypto.id === el.crypto
+            );
+
+            console.log(typeof ownedCryptos[index].currentPrice);
+
+            const variationInFiat =
+              ownedCryptosCopy[index].totalQuantity *
+                ownedCryptosCopy[index].currentPrice -
+              el.totalInvestment;
+
+            const variation = variationInFiat / el.totalInvestment;
+
+            el.ratio = el.totalInvestment / totalPortfolioInvestment;
+
+            el.variation = variation;
+
+            portfolioVariationInPercent += el.ratio * el.variation * 100;
+          }
+
+          console.log(totalInvestmentPerCrypto);
+          console.log(portfolioVariationInPercent);
 
           res.json({
             result: true,
             message: "ownedCryptos array correctly loaded",
             ownedCryptos: ownedCryptosCopy,
             totalPortfolioInvestment,
+            totalInvestmentPerCrypto,
+            portfolioVariationInPercent,
           });
         });
     } else {
