@@ -545,8 +545,8 @@ router.put("/update-transaction", async function (req, res) {
           {
             $set: {
               "ownedCryptos.$[crypto].totalQuantity":
-                Number(userCryptoQuantity) -
-                Number(transactionToUpdate.fees) +
+                Number(userCryptoQuantity) +
+                Number(transactionToUpdate.fees) -
                 Number(fees),
             },
           },
