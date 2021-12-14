@@ -298,43 +298,45 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
       .get(`/list-transactions/${req.params.token}/${req.params.id}`)
       .then(async (response) => {
         // console.log(response.data.result, response.data.transactions);
-        const transactions = response.data.transactions;
-        if (response.data.transactions) {
-          for (let i = 0; i < transactions.length; i++) {
-            console.log(
-              `/delete-transaction/${req.params.token}/${req.params.id}/${transactions[i]._id}`
+        if (response.data.result) {
+          const transactions = response.data.transactions.map((a) => a._id);
+
+          const deletedTransactions = await transactionModel.deleteMany({
+            _id: { $in: transactions },
+          });
+
+          console.log(deletedTransactions);
+
+          if (deletedTransactions) {
+            const ownedCryptos = user.ownedCryptos;
+            const deleteCrypto = ownedCryptos.filter(
+              (word) => word.id !== req.params.id
             );
-            myWalletAPI
-              .delete(
-                `/delete-transaction/${req.params.token}/${req.params.id}/${transactions[i]._id}`
-              )
-              .then((response) => {
-                console.log(response.data);
+            const update = await userModel.updateOne(
+              { token: req.params.token },
+              { ownedCryptos: deleteCrypto }
+            );
+            if (update) {
+              res.json({
+                result: true,
+                message: "Correctly deleted crypto from db",
               });
+            } else {
+              res.json({
+                result: false,
+                message: "Error while deleting crypto from db",
+              });
+            }
+          } else {
+            res.json({
+              result: false,
+              message: "Error while deleting Transaction from db",
+            });
           }
+        } else {
+          res.json({ result: false, message: "No Transaction in db" });
         }
       });
-    // wait(2000).then(async () => {
-    //   const ownedCryptos = user.ownedCryptos;
-    //   const deleteCrypto = ownedCryptos.filter(
-    //     (word) => word.id !== req.params.id
-    //   );
-    //   const update = await userModel.updateOne(
-    //     { token: req.params.token },
-    //     { ownedCryptos: deleteCrypto }
-    //   );
-    //   if (update) {
-    //     res.json({
-    //       result: true,
-    //       message: "Correctly deleted crypto from db",
-    //     });
-    //   } else {
-    //     res.json({
-    //       result: false,
-    //       message: "Error while deleting crypto from db",
-    //     });
-    //   }
-    // });
   } else {
     res.json({ result: false, message: "No user found or missing body entry" });
   }
@@ -496,7 +498,7 @@ router.delete(
           { arrayFilters: [{ "crypto.id": crypto_id }] }
         );
 
-        console.log(updatedUserTransactions)
+        // console.log(updatedUserTransactions);
 
         res.json({
           result: true,
