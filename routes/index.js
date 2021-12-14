@@ -7,8 +7,12 @@ const uid2 = require("uid2");
 const saltRounds = 10;
 const { body, validationResult, check } = require("express-validator");
 // const cookieParser = require("cookie-parser");
-const coinGeckoAPI = require("../api/coinGecko");
-const myWalletAPI = require("../api/myWallet");
+const axios = require("axios");
+
+const coinGeckoAPI = axios.create({
+  baseURL: "https://api.coingecko.com/api/v3",
+  timeout: 1000,
+});
 
 // Inscription d'un utilisateur
 router.post(
@@ -285,49 +289,42 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
   const user = await userModel.findOne({ token: req.params.token });
 
   if (user && req.params.id) {
-    myWalletAPI
-      .get(`/list-transactions/${req.params.token}/${req.params.id}`)
-      .then(async (response) => {
-        // console.log(response.data.result, response.data.transactions);
-        if (response.data.result) {
-          const transactions = response.data.transactions.map((a) => a._id);
+    const transactions = user.ownedCryptos.find(
+      (crypto) => crypto.id === req.params.id
+    ).transactions_id;
 
-          const deletedTransactions = await transactionModel.deleteMany({
-            _id: { $in: transactions },
-          });
+    const deletedTransactions = await transactionModel.deleteMany({
+      _id: { $in: transactions },
+    });
 
-          console.log(deletedTransactions);
+    console.log(deletedTransactions);
 
-          if (deletedTransactions) {
-            const ownedCryptos = user.ownedCryptos;
-            const deleteCrypto = ownedCryptos.filter(
-              (word) => word.id !== req.params.id
-            );
-            const update = await userModel.updateOne(
-              { token: req.params.token },
-              { ownedCryptos: deleteCrypto }
-            );
-            if (update) {
-              res.json({
-                result: true,
-                message: "Correctly deleted crypto from db",
-              });
-            } else {
-              res.json({
-                result: false,
-                message: "Error while deleting crypto from db",
-              });
-            }
-          } else {
-            res.json({
-              result: false,
-              message: "Error while deleting Transaction from db",
-            });
-          }
-        } else {
-          res.json({ result: false, message: "No Transaction in db" });
-        }
+    if (deletedTransactions) {
+      const ownedCryptos = user.ownedCryptos;
+      const deleteCrypto = ownedCryptos.filter(
+        (word) => word.id !== req.params.id
+      );
+      const update = await userModel.updateOne(
+        { token: req.params.token },
+        { ownedCryptos: deleteCrypto }
+      );
+      if (update) {
+        res.json({
+          result: true,
+          message: "Correctly deleted crypto from db",
+        });
+      } else {
+        res.json({
+          result: false,
+          message: "Error while deleting crypto from db",
+        });
+      }
+    } else {
+      res.json({
+        result: false,
+        message: "Error while deleting Transaction from db",
       });
+    }
   } else {
     res.json({ result: false, message: "No user found or missing body entry" });
   }
