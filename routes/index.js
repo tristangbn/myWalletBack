@@ -5,19 +5,10 @@ const transactionModel = require("../models/transactions");
 const bcrypt = require("bcrypt");
 const uid2 = require("uid2");
 const saltRounds = 10;
-const axios = require("axios");
 const { body, validationResult, check } = require("express-validator");
-const cookieParser = require("cookie-parser");
-
-const coinGeckoAPI = axios.create({
-  baseURL: "https://api.coingecko.com/api/v3",
-  timeout: 1000,
-});
-
-const myWalletAPI = axios.create({
-  baseURL: "http://192.168.1.23:3000",
-  timeout: 1000,
-});
+// const cookieParser = require("cookie-parser");
+const coinGeckoAPI = require("../api/coinGecko");
+const myWalletAPI = require("../api/myWallet");
 
 // Inscription d'un utilisateur
 router.post(
