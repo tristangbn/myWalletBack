@@ -305,8 +305,6 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
       _id: { $in: transactions },
     });
 
-    console.log(deletedTransactions);
-
     if (deletedTransactions) {
       const ownedCryptos = user.ownedCryptos;
       const deleteCrypto = ownedCryptos.filter(
@@ -499,6 +497,7 @@ router.delete(
         res.json({
           result: true,
           message: "Transaction deleted",
+          totalQuantity,
         });
       } else {
         res.json({ result: false, message: "Transaction not found" });
