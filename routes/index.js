@@ -5,8 +5,9 @@ const transactionModel = require("../models/transactions");
 const bcrypt = require("bcrypt");
 const uid2 = require("uid2");
 const saltRounds = 10;
-const axios = require("axios");
 const { body, validationResult, check } = require("express-validator");
+// const cookieParser = require("cookie-parser");
+const axios = require("axios");
 
 const coinGeckoAPI = axios.create({
   baseURL: "https://api.coingecko.com/api/v3",
@@ -175,11 +176,11 @@ router.get("/list-crypto/:token", async function (req, res) {
         )
       );
 
-      console.log(buyTransactions);
+      // console.log(buyTransactions);
 
       const totalInvestmentPerCrypto = [];
 
-      if (buyTransactions[0].length > 0) {
+      if (buyTransactions.length > 0 && buyTransactions[0].length > 0) {
         for (let el of buyTransactions) {
           // console.log(crypto);
 
@@ -196,7 +197,7 @@ router.get("/list-crypto/:token", async function (req, res) {
       }
 
       // console.log(buyTransactions);
-      console.log(totalInvestmentPerCrypto);
+      // console.log(totalInvestmentPerCrypto);
 
       coinGeckoAPI
         .get("/simple/price", {
@@ -296,22 +297,40 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
   const user = await userModel.findOne({ token: req.params.token });
 
   if (user && req.params.id) {
-    const ownedCryptos = user.ownedCryptos;
-    const deleteCrypto = ownedCryptos.filter(
-      (word) => word.id !== req.params.id
-    );
+    const transactions = user.ownedCryptos.find(
+      (crypto) => crypto.id === req.params.id
+    ).transactions_id;
 
-    const update = await userModel.updateOne(
-      { token: req.params.token },
-      { ownedCryptos: deleteCrypto }
-    );
+    const deletedTransactions = await transactionModel.deleteMany({
+      _id: { $in: transactions },
+    });
 
-    if (update) {
-      res.json({ result: true, message: "Correctly deleted crypto from db" });
+    console.log(deletedTransactions);
+
+    if (deletedTransactions) {
+      const ownedCryptos = user.ownedCryptos;
+      const deleteCrypto = ownedCryptos.filter(
+        (word) => word.id !== req.params.id
+      );
+      const update = await userModel.updateOne(
+        { token: req.params.token },
+        { ownedCryptos: deleteCrypto }
+      );
+      if (update) {
+        res.json({
+          result: true,
+          message: "Correctly deleted crypto from db",
+        });
+      } else {
+        res.json({
+          result: false,
+          message: "Error while deleting crypto from db",
+        });
+      }
     } else {
       res.json({
         result: false,
-        message: "Error while deleting crypto from db",
+        message: "Error while deleting Transaction from db",
       });
     }
   } else {
@@ -338,7 +357,7 @@ router.post("/add-transaction", async function (req, res) {
   // Trouver l'utilisateur grâce à son token
   const user = await userModel.findOne({ token: token });
 
-  console.log("TYPE QUANTITY", typeof quantity);
+  // console.log("TYPE QUANTITY", typeof quantity);
 
   // Si un utilisateur est trouvé
   if (user) {
@@ -351,7 +370,7 @@ router.post("/add-transaction", async function (req, res) {
       (crypto) => crypto.id === id
     ).totalQuantity;
 
-    console.log("TOTAL QUANTITY", typeof totalQuantity);
+    // console.log("TOTAL QUANTITY", typeof totalQuantity);
 
     // Création d'une nouvelle transaction
     const newTransaction = new transactionModel({
@@ -475,6 +494,8 @@ router.delete(
           { arrayFilters: [{ "crypto.id": crypto_id }] }
         );
 
+        // console.log(updatedUserTransactions);
+
         res.json({
           result: true,
           message: "Transaction deleted",
@@ -541,7 +562,7 @@ router.put("/update-transaction", async function (req, res) {
     const userCryptoQuantity = user.ownedCryptos.find(
       (crypto) => crypto.id === id
     ).totalQuantity;
-    console.log(userCryptoQuantity);
+    // console.log(userCryptoQuantity);
 
     // update de la totalQuantity de la crypto impliquer par la transaction
     switch (type) {
