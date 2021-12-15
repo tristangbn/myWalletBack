@@ -811,7 +811,8 @@ router.get("/stocks/:token/:days", async function (req, res) {
 
       coinGeckoAPI
         .get(
-          `/coins/markets?vs_currency=eur&order=market_cap_desc&per_page=100&page=1&sparkline=false&ids=${ids}`
+          "/coins/markets?vs_currency=eur&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=24h%2C7d" +
+            (req.params.myCryptos === "true" ? `&ids=${ids}` : "")
         )
         .then(async (response) => {
           const cryptos = [];
@@ -829,7 +830,10 @@ router.get("/stocks/:token/:days", async function (req, res) {
               name: response.data[i].name,
               id: response.data[i].id,
               currentPrice: response.data[i].current_price,
-              price_change_24h: response.data[i].price_change_percentage_24h,
+              price_change_24h:
+                response.data[i].price_change_percentage_24h_in_currency,
+              price_change_7d:
+                response.data[i].price_change_percentage_7d_in_currency,
               prices: price.data.prices,
             });
           }
