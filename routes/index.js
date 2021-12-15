@@ -845,7 +845,7 @@ router.get("/stocks/:token/:days", async function (req, res) {
   }
 });
 
-router.get("/stocks/:token/:days", async function (req, res) {
+router.get("/stocks/:token/:days/:myCryptos", async function (req, res) {
   const user = await userModel.findOne({ token: req.params.token });
 
   const intervalUpdate = [
