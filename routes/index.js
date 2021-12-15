@@ -386,98 +386,138 @@ router.delete("/delete-crypto/:id/:token", async function (req, res) {
 });
 
 // Ajout d'une transaction
-router.post("/add-transaction", async function (req, res) {
-  const {
-    token,
-    type,
-    id,
-    platform,
-    pair,
-    date,
-    price,
-    quantity,
-    fees,
-    from,
-    to,
-  } = req.body;
+router.post(
+  "/add-transaction",
+  body("platform")
+    .not()
+    .isEmpty()
+    .trim()
+    .escape()
+    .withMessage("Please select a platform"),
+  body("pair").not().isEmpty().trim().withMessage("Please select a pair"),
+  body("price")
+    .not()
+    .isEmpty()
+    .trim()
+    .escape()
+    .withMessage("Please enter a price"),
+  body("quantity")
+    .not()
+    .isEmpty()
+    .trim()
+    .escape()
+    .withMessage("Please select a quantity"),
+  body("from")
+    .not()
+    .isEmpty()
+    .trim()
+    .escape()
+    .withMessage("Please select a platform"),
+  body("to")
+    .not()
+    .isEmpty()
+    .trim()
+    .escape()
+    .withMessage("Please select a platform"),
+  async function (req, res) {
+    const errors = validationResult(req);
+    console.log(errors);
+    if (!errors.isEmpty()) {
+      res.json(errors);
+    } else {
+      const {
+        token,
+        type,
+        id,
+        platform,
+        pair,
+        date,
+        price,
+        quantity,
+        fees,
+        from,
+        to,
+      } = req.body;
 
-  // Trouver l'utilisateur grâce à son token
-  const user = await userModel.findOne({ token: token });
+      // Trouver l'utilisateur grâce à son token
+      const user = await userModel.findOne({ token: token });
 
-  // console.log("TYPE QUANTITY", typeof quantity);
+      // console.log("TYPE QUANTITY", typeof quantity);
 
-  // Si un utilisateur est trouvé
-  if (user) {
-    // Création d'une copie de l'array des transactions de cet utilisateur pour la cryptomonnaie reçue
-    const userTransactions = user.ownedCryptos.find(
-      (crypto) => crypto.id === id
-    ).transactions_id;
+      // Si un utilisateur est trouvé
+      if (user) {
+        // Création d'une copie de l'array des transactions de cet utilisateur pour la cryptomonnaie reçue
+        const userTransactions = user.ownedCryptos.find(
+          (crypto) => crypto.id === id
+        ).transactions_id;
 
-    let totalQuantity = user.ownedCryptos.find(
-      (crypto) => crypto.id === id
-    ).totalQuantity;
+        let totalQuantity = user.ownedCryptos.find(
+          (crypto) => crypto.id === id
+        ).totalQuantity;
 
-    // console.log("TOTAL QUANTITY", typeof totalQuantity);
+        // console.log("TOTAL QUANTITY", typeof totalQuantity);
 
-    // Création d'une nouvelle transaction
-    const newTransaction = new transactionModel({
-      type: type,
-      crypto: id,
-      platform: platform,
-      pair: pair,
-      date: date,
-      price: price,
-      quantity: quantity,
-      fees: fees,
-      from: from,
-      to: to,
-    });
+        // Création d'une nouvelle transaction
+        const newTransaction = new transactionModel({
+          type: type,
+          crypto: id,
+          platform: platform,
+          pair: pair,
+          date: date,
+          price: price,
+          quantity: quantity,
+          fees: fees,
+          from: from,
+          to: to,
+        });
 
-    // Sauvegarde de la transaction en BDD
-    const savedTransaction = await newTransaction.save();
+        // Sauvegarde de la transaction en BDD
+        const savedTransaction = await newTransaction.save();
 
-    // Ajout de l'ID de la nouvelle transaction dans la copie de l'array des transactions
-    userTransactions.unshift(savedTransaction._id);
+        // Ajout de l'ID de la nouvelle transaction dans la copie de l'array des transactions
+        userTransactions.unshift(savedTransaction._id);
 
-    // Mise à jour de totalQuantity de la crypto fonction du type de transaction
-    switch (type) {
-      case "buy":
-        totalQuantity += Number(quantity);
-        break;
-      case "sell":
-        totalQuantity -= Number(quantity);
-        break;
-      case "transfer":
-        totalQuantity -= Number(fees);
-        break;
+        // Mise à jour de totalQuantity de la crypto fonction du type de transaction
+        switch (type) {
+          case "buy":
+            totalQuantity += Number(quantity);
+            break;
+          case "sell":
+            totalQuantity -= Number(quantity);
+            break;
+          case "transfer":
+            totalQuantity -= Number(fees);
+            break;
+        }
+
+        // Mise à jour de l'array des transactions de l'utilisateur pour la crypto
+        const updatedUserTransactions = await userModel.updateOne(
+          // Filtre sur le token pour viser l'utilisateur
+          {
+            token: token,
+          },
+          // On met à jour l'array transactions_id pour la crypto associée à la transaction
+          {
+            $set: {
+              "ownedCryptos.$[crypto].transactions_id": userTransactions,
+              "ownedCryptos.$[crypto].totalQuantity": totalQuantity,
+            },
+          },
+          // On filtre l'array pour se positier dans dans la bonne crypto associée à la transaction
+          { arrayFilters: [{ "crypto.id": id }] }
+        );
+
+        res.json({
+          result: true,
+          message: "Transaction added",
+          transactionID: savedTransaction._id,
+        });
+      } else {
+        res.json({ result: false, message: "Error adding transaction" });
+      }
     }
-
-    // Mise à jour de l'array des transactions de l'utilisateur pour la crypto
-    const updatedUserTransactions = await userModel.updateOne(
-      // Filtre sur le token pour viser l'utilisateur
-      {
-        token: token,
-      },
-      // On met à jour l'array transactions_id pour la crypto associée à la transaction
-      {
-        $set: {
-          "ownedCryptos.$[crypto].transactions_id": userTransactions,
-          "ownedCryptos.$[crypto].totalQuantity": totalQuantity,
-        },
-      },
-      // On filtre l'array pour se positier dans dans la bonne crypto associée à la transaction
-      { arrayFilters: [{ "crypto.id": id }] }
-    );
-
-    res.json({
-      result: true,
-      message: "Transaction added",
-      transactionID: savedTransaction._id,
-    });
-  } else {
-    res.json({ result: false, message: "Error adding transaction" });
   }
-});
+);
 
 // Supprimer une transaction
 router.delete(
@@ -587,129 +627,171 @@ router.get("/list-transactions/:token/:id", async function (req, res) {
   }
 });
 
-router.put("/update-transaction", async function (req, res) {
-  const {
-    token,
-    _id,
-    type,
-    id,
-    platform,
-    pair,
-    date,
-    price,
-    quantity,
-    fees,
-    from,
-    to,
-  } = req.body;
-
-  const user = await userModel.findOne({ token: token });
-
-  if (user) {
-    const transactionToUpdate = await transactionModel.findOne({ _id: _id });
-    const userCryptoQuantity = user.ownedCryptos.find(
-      (crypto) => crypto.id === id
-    ).totalQuantity;
-    // console.log(userCryptoQuantity);
-
-    // update de la totalQuantity de la crypto impliquer par la transaction
-    switch (type) {
-      case "transfer":
-        await userModel.updateOne(
-          {
-            token: token,
-          },
-          {
-            $set: {
-              "ownedCryptos.$[crypto].totalQuantity":
-                Number(userCryptoQuantity) +
-                Number(transactionToUpdate.fees) -
-                Number(fees),
-            },
-          },
-
-          { arrayFilters: [{ "crypto.id": id }] }
-        );
-        break;
-      case "buy":
-        await userModel.updateOne(
-          {
-            token: token,
-          },
-          {
-            $set: {
-              "ownedCryptos.$[crypto].totalQuantity":
-                Number(userCryptoQuantity) -
-                Number(transactionToUpdate.quantity) +
-                Number(quantity),
-            },
-          },
-
-          { arrayFilters: [{ "crypto.id": id }] }
-        );
-        break;
-      case "sell":
-        await userModel.updateOne(
-          {
-            token: token,
-          },
-          {
-            $set: {
-              "ownedCryptos.$[crypto].totalQuantity":
-                Number(userCryptoQuantity) +
-                Number(transactionToUpdate.quantity) -
-                Number(quantity),
-            },
-          },
-
-          { arrayFilters: [{ "crypto.id": id }] }
-        );
-        break;
-    }
-
-    if (transactionToUpdate) {
-      if (type == "transfer") {
-        await transactionModel.updateOne(
-          { _id: _id },
-          {
-            type: type,
-            crypto: id,
-            platform: "",
-            pair: "",
-            date: date,
-            price: null,
-            quantity: quantity,
-            fees: fees,
-            from: from,
-            to: to,
-          }
-        );
-      } else {
-        await transactionModel.updateOne(
-          { _id: _id },
-          {
-            type: type,
-            crypto: id,
-            platform: platform,
-            pair: pair,
-            date: date,
-            price: price,
-            quantity: quantity,
-            fees: fees,
-            from: "",
-            to: "",
-          }
-        );
-      }
-
-      res.json({ result: true });
+router.put(
+  "/update-transaction",
+  body("platform")
+    .not()
+    .isEmpty()
+    .trim()
+    .escape()
+    .withMessage("Please select a platform"),
+  body("pair").not().isEmpty().trim().withMessage("Please select a pair"),
+  body("price")
+    .not()
+    .isEmpty()
+    .trim()
+    .escape()
+    .withMessage("Please enter a price"),
+  body("quantity")
+    .not()
+    .isEmpty()
+    .trim()
+    .escape()
+    .withMessage("Please select a quantity"),
+  body("from")
+    .not()
+    .isEmpty()
+    .trim()
+    .escape()
+    .withMessage("Please select a platform"),
+  body("to")
+    .not()
+    .isEmpty()
+    .trim()
+    .escape()
+    .withMessage("Please select a platform"),
+  async function (req, res) {
+    const errors = validationResult(req);
+    console.log(errors);
+    if (!errors.isEmpty()) {
+      res.json(errors);
     } else {
-      res.json({ result: false, message: "Transaction not found" });
+      const {
+        token,
+        _id,
+        type,
+        id,
+        platform,
+        pair,
+        date,
+        price,
+        quantity,
+        fees,
+        from,
+        to,
+      } = req.body;
+
+      const user = await userModel.findOne({ token: token });
+
+      if (user) {
+        const transactionToUpdate = await transactionModel.findOne({
+          _id: _id,
+        });
+        const userCryptoQuantity = user.ownedCryptos.find(
+          (crypto) => crypto.id === id
+        ).totalQuantity;
+        // console.log(userCryptoQuantity);
+
+        // update de la totalQuantity de la crypto impliquer par la transaction
+        switch (type) {
+          case "transfer":
+            await userModel.updateOne(
+              {
+                token: token,
+              },
+              {
+                $set: {
+                  "ownedCryptos.$[crypto].totalQuantity":
+                    Number(userCryptoQuantity) +
+                    Number(transactionToUpdate.fees) -
+                    Number(fees),
+                },
+              },
+
+              { arrayFilters: [{ "crypto.id": id }] }
+            );
+            break;
+          case "buy":
+            await userModel.updateOne(
+              {
+                token: token,
+              },
+              {
+                $set: {
+                  "ownedCryptos.$[crypto].totalQuantity":
+                    Number(userCryptoQuantity) -
+                    Number(transactionToUpdate.quantity) +
+                    Number(quantity),
+                },
+              },
+
+              { arrayFilters: [{ "crypto.id": id }] }
+            );
+            break;
+          case "sell":
+            await userModel.updateOne(
+              {
+                token: token,
+              },
+              {
+                $set: {
+                  "ownedCryptos.$[crypto].totalQuantity":
+                    Number(userCryptoQuantity) +
+                    Number(transactionToUpdate.quantity) -
+                    Number(quantity),
+                },
+              },
+
+              { arrayFilters: [{ "crypto.id": id }] }
+            );
+            break;
+        }
+
+        if (transactionToUpdate) {
+          if (type == "transfer") {
+            await transactionModel.updateOne(
+              { _id: _id },
+              {
+                type: type,
+                crypto: id,
+                platform: "",
+                pair: "",
+                date: date,
+                price: null,
+                quantity: quantity,
+                fees: fees,
+                from: from,
+                to: to,
+              }
+            );
+          } else {
+            await transactionModel.updateOne(
+              { _id: _id },
+              {
+                type: type,
+                crypto: id,
+                platform: platform,
+                pair: pair,
+                date: date,
+                price: price,
+                quantity: quantity,
+                fees: fees,
+                from: "",
+                to: "",
+              }
+            );
+          }
+
+          res.json({ result: true });
+        } else {
+          res.json({ result: false, message: "Transaction not found" });
+        }
+      } else {
+        res.json({ result: false, message: "User not found" });
+      }
     }
-  } else {
-    res.json({ result: false, message: "User not found" });
   }
-});
+);
 
 router.get("/stocks/:token/:days", async function (req, res) {
   const user = await userModel.findOne({ token: req.params.token });
@@ -734,6 +816,55 @@ router.get("/stocks/:token/:days", async function (req, res) {
         .then(async (response) => {
           const cryptos = [];
           for (let i = 0; i < response.data.length && i < 20; i++) {
+            // On limite i à 20 pour éviter de surcharger le nombre de fetch à coinGecko
+            const price = await coinGeckoAPI.get(
+              `https://api.coingecko.com/api/v3/coins/${
+                response.data[i].id
+              }/market_chart?vs_currency=eur&days=${req.params.days}&interval=${
+                intervalUpdate.find((e) => e.days == req.params.days).interval
+              }`
+            );
+            cryptos.push({
+              image: response.data[i].image,
+              name: response.data[i].name,
+              id: response.data[i].id,
+              currentPrice: response.data[i].current_price,
+              price_change_24h: response.data[i].price_change_percentage_24h,
+              prices: price.data.prices,
+            });
+          }
+          Promise.all(cryptos).then((response) =>
+            res.json({ result: true, cryptos: response })
+          );
+        });
+    }
+  }
+});
+
+router.get("/stocks/:token/:days/:myCryptos", async function (req, res) {
+  const user = await userModel.findOne({ token: req.params.token });
+
+  const intervalUpdate = [
+    { days: 7, interval: "daily" },
+    { days: 1, interval: "hourly" },
+  ];
+
+  if (user) {
+    let ownedCryptos = [...user.ownedCryptos];
+    if (ownedCryptos) {
+      let ids = "";
+      for (let i = 0; i < ownedCryptos.length; i++) {
+        ids += ownedCryptos[i].id + ",";
+      }
+
+      coinGeckoAPI
+        .get(
+          "/coins/markets?vs_currency=eur&order=market_cap_desc&per_page=100&page=1&sparkline=false" +
+            (req.params.myCryptos === "true" ? `&ids=${ids}` : "")
+        )
+        .then(async (response) => {
+          const cryptos = [];
+          for (let i = 0; i < response.data.length && i < 10; i++) {
             // On limite i à 20 pour éviter de surcharger le nombre de fetch à coinGecko
             const price = await coinGeckoAPI.get(
               `https://api.coingecko.com/api/v3/coins/${
