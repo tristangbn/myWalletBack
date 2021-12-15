@@ -394,7 +394,7 @@ router.post(
     .trim()
     .escape()
     .withMessage("Please select a platform"),
-  body("pair").not().isEmpty().trim().withMessage("Please select a pair"),
+
   body("price")
     .not()
     .isEmpty()
@@ -635,7 +635,7 @@ router.put(
     .trim()
     .escape()
     .withMessage("Please select a platform"),
-  body("pair").not().isEmpty().trim().withMessage("Please select a pair"),
+
   body("price")
     .not()
     .isEmpty()
