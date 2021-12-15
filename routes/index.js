@@ -11,7 +11,7 @@ const axios = require("axios");
 
 const coinGeckoAPI = axios.create({
   baseURL: "https://api.coingecko.com/api/v3",
-  timeout: 1000,
+  timeout: 2000,
 });
 
 // Inscription d'un utilisateur
@@ -176,6 +176,12 @@ router.get("/list-crypto/:token", async function (req, res) {
         )
       );
 
+      const sellTransactions = ownedCryptos.map((crypto) =>
+        crypto.transactions_id.filter(
+          (transaction) => transaction.type === "sell"
+        )
+      );
+
       // console.log(buyTransactions);
 
       const totalInvestmentPerCrypto = [];
@@ -192,6 +198,24 @@ router.get("/list-crypto/:token", async function (req, res) {
               }, 0),
             };
             totalInvestmentPerCrypto.push(crypto);
+          }
+        }
+      }
+
+      if (sellTransactions.length > 0 && sellTransactions[0].length > 0) {
+        for (let el of sellTransactions) {
+          // console.log(crypto);
+          if (el.length > 0) {
+            const cryptoIndex = totalInvestmentPerCrypto.findIndex(
+              (crypto) => crypto.crypto === el[0].crypto
+            );
+
+            totalInvestmentPerCrypto[cryptoIndex].totalInvestment -= el.reduce(
+              (acc, val) => {
+                return acc + val.price * val.quantity - val.fees;
+              },
+              0
+            );
           }
         }
       }
@@ -684,6 +708,54 @@ router.put("/update-transaction", async function (req, res) {
     }
   } else {
     res.json({ result: false, message: "User not found" });
+  }
+});
+
+router.get("/stocks/:token/:days", async function (req, res) {
+  const user = await userModel.findOne({ token: req.params.token });
+
+  const intervalUpdate = [
+    { days: 7, interval: "daily" },
+    { days: 1, interval: "hourly" },
+  ];
+
+  if (user) {
+    let ownedCryptos = [...user.ownedCryptos];
+    if (ownedCryptos) {
+      let ids = "";
+      for (let i = 0; i < ownedCryptos.length; i++) {
+        ids += ownedCryptos[i].id + ",";
+      }
+
+      coinGeckoAPI
+        .get(
+          `/coins/markets?vs_currency=eur&order=market_cap_desc&per_page=100&page=1&sparkline=false&ids=${ids}`
+        )
+        .then(async (response) => {
+          const cryptos = [];
+          for (let i = 0; i < response.data.length && i < 20; i++) {
+            // On limite i à 20 pour éviter de surcharger le nombre de fetch à coinGecko
+            const price = await coinGeckoAPI.get(
+              `https://api.coingecko.com/api/v3/coins/${
+                response.data[i].id
+              }/market_chart?vs_currency=eur&days=${req.params.days}&interval=${
+                intervalUpdate.find((e) => e.days == req.params.days).interval
+              }`
+            );
+            cryptos.push({
+              image: response.data[i].image,
+              name: response.data[i].name,
+              id: response.data[i].id,
+              currentPrice: response.data[i].current_price,
+              price_change_24h: response.data[i].price_change_percentage_24h,
+              prices: price.data.prices,
+            });
+          }
+          Promise.all(cryptos).then((response) =>
+            res.json({ result: true, cryptos: response })
+          );
+        });
+    }
   }
 });
 
