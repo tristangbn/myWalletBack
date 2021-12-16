@@ -9,6 +9,7 @@ const coinGeckoAPI = axios.create({
 });
 
 router.get("/stocks/:token/:days/:myCryptos", async function (req, res) {
+  const maxStocks = 5;
   const user = await userModel.findOne({ token: req.params.token });
 
   const intervalUpdate = [
@@ -26,12 +27,12 @@ router.get("/stocks/:token/:days/:myCryptos", async function (req, res) {
 
       coinGeckoAPI
         .get(
-          "/coins/markets?vs_currency=eur&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h%2C7d" +
+          `/coins/markets?vs_currency=eur&order=market_cap_desc&per_page=${maxStocks}&page=1&sparkline=false&price_change_percentage=24h%2C7d` +
             (req.params.myCryptos === "true" ? `&ids=${ids}` : "")
         )
         .then(async (response) => {
           const cryptos = [];
-          for (let i = 0; i < response.data.length && i < 20; i++) {
+          for (let i = 0; i < response.data.length && i < maxStocks; i++) {
             // On limite i à 20 pour éviter de surcharger le nombre de fetch à coinGecko
             const price = await coinGeckoAPI.get(
               `https://api.coingecko.com/api/v3/coins/${
