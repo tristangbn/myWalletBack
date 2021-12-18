@@ -264,7 +264,7 @@ router.get("/list-crypto/:token", async function (req, res) {
               (crypto) => crypto.id === el.crypto
             );
 
-            console.log(typeof ownedCryptos[index].currentPrice);
+            // console.log(typeof ownedCryptos[index].currentPrice);
 
             const variationInFiat =
               ownedCryptosCopy[index].totalQuantity *
@@ -280,8 +280,8 @@ router.get("/list-crypto/:token", async function (req, res) {
             portfolioVariationInPercent += el.ratio * el.variation * 100;
           }
 
-          console.log(totalInvestmentPerCrypto);
-          console.log(portfolioVariationInPercent);
+          // console.log(totalInvestmentPerCrypto);
+          // console.log(portfolioVariationInPercent);
 
           res.json({
             result: true,
@@ -868,7 +868,7 @@ router.get("/stocks/:token/:days/:myCryptos", async function (req, res) {
         )
         .then(async (response) => {
           const cryptos = [];
-          for (let i = 0; i < response.data.length && i < 20; i++) {
+          for (let i = 0; i < response.data.length && i < 10; i++) {
             // On limite i à 20 pour éviter de surcharger le nombre de fetch à coinGecko
             const price = await coinGeckoAPI.get(
               `https://api.coingecko.com/api/v3/coins/${
