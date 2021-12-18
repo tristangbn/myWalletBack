@@ -117,7 +117,7 @@ router.get("/list-crypto/:token", async function (req, res) {
               (crypto) => crypto.id === el.crypto
             );
 
-            console.log(typeof ownedCryptos[index].currentPrice);
+            // console.log(typeof ownedCryptos[index].currentPrice);
 
             const variationInFiat =
               ownedCryptosCopy[index].totalQuantity *
@@ -133,8 +133,8 @@ router.get("/list-crypto/:token", async function (req, res) {
             portfolioVariationInPercent += el.ratio * el.variation * 100;
           }
 
-          console.log(totalInvestmentPerCrypto);
-          console.log(portfolioVariationInPercent);
+          // console.log(totalInvestmentPerCrypto);
+          // console.log(portfolioVariationInPercent);
 
           res.json({
             result: true,
